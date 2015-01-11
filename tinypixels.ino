@@ -6,34 +6,36 @@
  * upload using Attiny85 w/internal 8MHZ Clock !!
 */
 #include <Adafruit_NeoPixel.h>
+#include "colorFunctions.h"
 
 #define PIXEL_PIN 4
 #define MODE_BTN 1
-#define POT_1 2
+#define LED_PIN 0
+#define POT_1 1
 #define POT_2 3
-#define HYSTERESIS 15
-#define TOTAL_DISPLAY_MODES 3
-#define DISPLAY_RATE_MIN 1
+#define HYSTERESIS 12
+#define TOTAL_DISPLAY_MODES 4
+#define DISPLAY_RATE_MIN 0
 #define DISPLAY_RATE_MAX 7
+#define DELAY_MIN 3
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(12, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 int num_active_pixels = strip.numPixels();
 int display_mode = 0;
-int display_rate = 0;
+int display_rate = DISPLAY_RATE_MIN;
 int roygbiv[][3] = {{255,5,5},{255,155,5},{255,255,5},{25,255,5},{48,59,210},{147,48,210},{169,43,196}};
-int16_t red = 0;
-int16_t green = 0;
-int16_t blue = 0;
-int16_t last_pot_one_val = -16;
-int16_t last_pot_two_val = -16;
+int16_t wheel_hue = 0;
+int16_t last_pot_one_val = -13;
+int16_t last_pot_two_val = -13;
+int rgbValues[3];
 
 void setup() {
 	pinMode(MODE_BTN, INPUT);
 	strip.setBrightness(100);
 	strip.begin();
 	strip.show(); 
-	delay(100);
+	//delay(100);
 }
 
 void loop() {
@@ -43,9 +45,14 @@ void loop() {
 	checkPots();
 	
 	switch(display_mode) {
+		case 0:
+			//setSolidWheelColor( wheel_hue );
+			setSolidRGB( rgbValues[0], rgbValues[1], rgbValues[2] );
+			strip.show();
+			break;
 		case 1:
-			setSolidRGB(red, green, blue);
-			delay(50);
+			setSolidWheelColor( wheel_hue );
+			strip.show();
 			break;
 		case 2:
 			randomWipes();
@@ -54,8 +61,10 @@ void loop() {
 			rainbowSmear();
 			break;
 		default:
-			setSolidRGB(red, green, blue);
-			delay(50);
+			//setSolidWheelColor( wheel_hue );
+			setSolidRGB( rgbValues[0], rgbValues[1], rgbValues[2] );
+			strip.show();
+			display_mode = 0;
 	}
 }
 
@@ -67,12 +76,12 @@ void checkButton() {
 
 	if (digitalRead(MODE_BTN) == HIGH)  {
 
-		//empty to show press is caught
-		//emptyStrip();
-		//strip.show();
+		solidWhite();
+		
+		delay(500);
 		
 		iterateDisplayMode();
-	
+		
 	}
 }
 
@@ -84,21 +93,24 @@ void checkPots() {
 	int16_t pot_one_val;
 	int16_t pot_two_val;
 	
-	pot_one_val = analogRead(0);
-	pot_two_val = analogRead(1);
+	pot_one_val = analogRead(POT_1);
+	pot_two_val = analogRead(POT_2);
 	
 	int16_t brightness;
-	int16_t hue;
+	uint32_t ct;
 	
 	//pot 1
 	if (((pot_one_val - last_pot_one_val) > HYSTERESIS) || ((last_pot_one_val - pot_one_val) > HYSTERESIS)) {
-		
+				
 		if(display_mode == 0) {
 		
-			hue = map( pot_one_val, 0, 1023, 0, 255);
-		
-			setSolidColor( Wheel(hue) );
+			ct = map( pot_one_val, 0, 1023, 2000, 20000);
+			rgbFromTemp(ct, rgbValues);
 	
+		}else if (display_mode == 1) {
+		
+			wheel_hue = map( pot_one_val, 0, 1023, 0, 255);
+		
 		}else{
 		
 			display_rate = map( pot_one_val, 0, 1023, DISPLAY_RATE_MIN, DISPLAY_RATE_MAX);
@@ -106,19 +118,19 @@ void checkPots() {
 		}
 		
 		last_pot_one_val = pot_one_val;
-
+			
 	}
 	
 	//pot 2
 	if (((pot_two_val - last_pot_two_val) > HYSTERESIS) || ((last_pot_two_val - pot_two_val) > HYSTERESIS)) {
-		
+				
 		brightness = map( pot_two_val, 0, 1023, 0, 255);
 		
 		strip.setBrightness(brightness);
 		strip.show();
 		
 		last_pot_two_val = pot_two_val;
-
+			
 	}
 
 }
@@ -133,10 +145,6 @@ void iterateDisplayMode() {
 	if(display_mode > (TOTAL_DISPLAY_MODES - 1)) {
 		display_mode = 0;
 	}
-	
-	//setSolidWheelColor( (255 / TOTAL_DISPLAY_MODES) * display_mode );
-	//setSolidRGB( roygbiv[display_mode][0], roygbiv[display_mode][1], roygbiv[display_mode][2] );
-	//strip.show();
 
 }
 
@@ -163,7 +171,7 @@ void rainbowSmear() {
 	for( i = 0; i < (256 / 4 ); i++) {
 		strip.setPixelColor( i % num_active_pixels, Wheel( (i * (inc * 4)) & 255 ));
 		strip.show();
-		delay(display_rate * 10 + 5);
+		delay(display_rate * 10 + DELAY_MIN);
 	}
 }
 
@@ -250,7 +258,6 @@ void emptyStrip() {
 
 /*
  * randomWipes
- * set all leds to random color for "wait" long
 */
 void randomWipes() {
 	for(int i=0; i<5; i++) {
@@ -261,7 +268,7 @@ void randomWipes() {
 			strip.setPixelColor(j, strip.Color(r, g, b));
 		}
 		strip.show();
-		delay(display_rate * 50 + 5);
+		delay(display_rate * 50 + DELAY_MIN);
 	}
 }
 
@@ -284,5 +291,13 @@ void setSolidWheelColor( byte c ) {
 	for(int j=0;j<num_active_pixels;j++) 
 	{
 		strip.setPixelColor(j, w);
+	}
+}
+
+void setLED(byte onoff) {
+	if(onoff) { 
+		digitalWrite(LED_PIN, HIGH);
+	}else{
+		digitalWrite(LED_PIN, LOW);
 	}
 }
