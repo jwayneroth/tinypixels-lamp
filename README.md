@@ -1,5 +1,6 @@
-<h2>Battery powered lamp using Adafruit neopixels with an ATTINY85<h2>
+<h2>Battery powered lamp using Adafruit neopixels with an Ardunio ready (TODO: what's this?) ATTINY85<h2>
 
+<p>be sure to burn arduino bootloader onto new attiny chips (TODO: why?)<br>upload using Attiny85 w/internal 8MHZ Clock</p>
 <p>has multiple display modes:</p>
 <ul>
 	<li>solid white along color temperature range</li>
